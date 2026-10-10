@@ -287,9 +287,36 @@ html[data-theme="light"] .tok-kw{color:#8e44ad}html[data-theme="light"] .tok-str
 }
 @media (min-width:881px){#btn-side-close{display:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* ================= 访问门 ================= */
+#gate{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:var(--bg);transition:opacity .3s ease}
+#gate.gate-out{opacity:0;pointer-events:none}
+#gate .gate-box{width:min(340px,88vw);text-align:center;padding:36px 32px;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow)}
+#gate .gate-mark{width:56px;height:56px;margin:0 auto 16px;border-radius:14px;background:var(--accent-soft);border:1px solid var(--accent-glow);display:flex;align-items:center;justify-content:center;font-size:26px;color:var(--accent);font-weight:700}
+#gate .gate-title{font-size:19px;font-weight:700;color:var(--text);letter-spacing:2px}
+#gate .gate-sub{margin-top:6px;font-size:12px;color:var(--text3);letter-spacing:1px}
+#gate .gate-form{margin-top:24px;display:flex;flex-direction:column;gap:10px}
+#gate input{height:42px;border-radius:10px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);padding:0 14px;font-size:14px;text-align:center;outline:none;transition:border-color .15s}
+#gate input:focus{border-color:var(--accent)}
+#gate button{height:42px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s}
+#gate button:hover{background:var(--accent-strong)}
+#gate .gate-err{min-height:18px;font-size:12px;color:var(--err);margin-top:2px}
+#gate .gate-form.shake{animation:gate-shake .35s}
+@keyframes gate-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
 </style>
 </head>
 <body>
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-mark">陈</div>
+    <div class="gate-title">陈生</div>
+    <div class="gate-sub">话不多，事都办</div>
+    <form class="gate-form" id="gate-form">
+      <input id="gate-input" type="password" placeholder="输入访问密码" autocomplete="off" autofocus>
+      <button type="submit">进入</button>
+      <div class="gate-err" id="gate-err"></div>
+    </form>
+  </div>
+</div>
 <div id="app">
   <aside id="sidebar">
     <div class="side-head">
@@ -427,6 +454,40 @@ html[data-theme="light"] .tok-kw{color:#8e44ad}html[data-theme="light"] .tok-str
 
 <script>
 'use strict';
+/* ================= 访问门 ================= */
+(function(){
+  const GATE_HASH = 'c228d0824f29d373946cbace80b044a05ae3d74d48c471d69fb60b88c1c22b21';
+  const gate = document.getElementById('gate');
+  if (!gate) return;
+  let passed = false;
+  try { passed = sessionStorage.getItem('cs_gate_ok') === '1'; } catch (e) {}
+  if (passed) { gate.remove(); return; }
+  const form = document.getElementById('gate-form');
+  const input = document.getElementById('gate-input');
+  const err = document.getElementById('gate-err');
+  const sha256 = async text => {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  };
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!input.value) return;
+    try {
+      if (await sha256(input.value) === GATE_HASH) {
+        try { sessionStorage.setItem('cs_gate_ok', '1'); } catch (e) {}
+        gate.classList.add('gate-out');
+        setTimeout(() => gate.remove(), 320);
+      } else {
+        err.textContent = '密码不对。';
+        form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake');
+        input.select();
+      }
+    } catch (ex) {
+      err.textContent = '当前环境无法完成验证，请通过网址访问。';
+    }
+  });
+  setTimeout(() => input.focus(), 60);
+})();
 /* ================= 基础工具 ================= */
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
